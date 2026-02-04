@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini Arcade</title>
+    <style>
+        :root {
+            --primary: #6366f1;
+            --bg: #0f172a;
+            --card: #1e293b;
+            --text: #f8fafc;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        header {
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .container {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .game-card {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 20px;
+            width: 320px;
+            text-align: center;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+        }
+
+        canvas {
+            background: #000;
+            display: block;
+            margin: 10px auto;
+            border: 2px solid var(--primary);
+        }
+
+        .btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: opacity 0.2s;
+        }
+
+        .btn:hover { opacity: 0.9; }
+        
+        #mole-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 80px);
+            gap: 10px;
+            justify-content: center;
+            margin-top: 10px;
+        }
+
+        .hole {
+            width: 80px;
+            height: 80px;
+            background: #334155;
+            border-radius: 50%;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .mole {
+            width: 60px;
+            height: 60px;
+            background: #fbbf24;
+            border-radius: 50%;
+            position: absolute;
+            top: 100%;
+            left: 10px;
+            transition: top 0.1s;
+        }
+
+        .mole.up { top: 10px; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>Gemini Arcade</h1>
+    <p>Select a game to start playing!</p>
+</header>
+
+<div class="container">
+    <div class="game-card">
+        <h3>Neon Snake</h3>
+        <p>Score: <span id="snake-score">0</span></p>
+        <canvas id="snakeGame" width="280" height="280"></canvas>
+        <button class="btn" onclick="startSnake()">Start / Reset</button>
+    </div>
+
+    <div class="game-card">
+        <h3>Mole Mash</h3>
+        <p>Score: <span id="mole-score">0</span></p>
+        <div id="mole-grid">
+            <div class="hole"><div class="mole"></div></div>
+            <div class="hole"><div class="mole"></div></div>
+            <div class="hole"><div class="mole"></div></div>
+            <div class="hole"><div class="mole"></div></div>
+            <div class="hole"><div class="mole"></div></div>
+            <div class="hole"><div class="mole"></div></div>
+        </div>
+        <br>
+        <button class="btn" onclick="startMoles()">Start Whacking</button>
+    </div>
+</div>
+
+<script>
+    // --- SNAKE GAME LOGIC ---
+    const canvas = document.getElementById("snakeGame");
+    const ctx = canvas.getContext("2d");
+    const box = 20;
+    let snake, food, score, d, gameInterval;
+
+    function startSnake() {
+        clearInterval(gameInterval);
+        snake = [{x: 9 * box, y: 10 * box}];
+        food = { x: Math.floor(Math.random() * 14) * box, y: Math.floor(Math.random() * 14) * box };
+        score = 0;
+        d = "RIGHT";
+        document.getElementById("snake-score").innerText = score;
+        gameInterval = setInterval(drawSnake, 150);
+    }
+
+    document.addEventListener("keydown", (e) => {
+        if(e.keyCode == 37 && d != "RIGHT") d = "LEFT";
+        else if(e.keyCode == 38 && d != "DOWN") d = "UP";
+        else if(e.keyCode == 39 && d != "LEFT") d = "RIGHT";
+        else if(e.keyCode == 40 && d != "UP") d = "DOWN";
+    });
+
+    function drawSnake() {
+        ctx.fillStyle = "black";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        for(let i = 0; i < snake.length; i++) {
+            ctx.fillStyle = (i == 0) ? "#6366f1" : "white";
+            ctx.fillRect(snake[i].x, snake[i].y, box, box);
+        }
+
+        ctx.fillStyle = "#ef4444";
+        ctx.fillRect(food.x, food.y, box, box);
+
+        let snakeX = snake[0].x;
+        let snakeY = snake[0].y;
+
+        if( d == "LEFT") snakeX -= box;
+        if( d == "UP") snakeY -= box;
+        if( d == "RIGHT") snakeX += box;
+        if( d == "DOWN") snakeY += box;
+
+        if(snakeX == food.x && snakeY == food.y) {
+            score++;
+            document.getElementById("snake-score").innerText = score;
+            food = { x: Math.floor(Math.random() * 14) * box, y: Math.floor(Math.random() * 14) * box };
+        } else {
+            snake.pop();
+        }
+
+        let newHead = { x: snakeX, y: snakeY };
+
+        if(snakeX < 0 || snakeY < 0 || snakeX >= canvas.width || snakeY >= canvas.height || collision(newHead, snake)) {
+            clearInterval(gameInterval);
+            alert("Game Over! Score: " + score);
+        }
+
+        snake.unshift(newHead);
+    }
+
+    function collision(head, array) {
+        for(let i = 0; i < array.length; i++) {
+            if(head.x == array[i].x && head.y == array[i].y) return true;
+        }
+        return false;
+    }
+
+    // --- WHACK-A-MOLE LOGIC ---
+    const moles = document.querySelectorAll('.mole');
+    let moleScore = 0;
+    let lastHole;
+    let timeUp = false;
+
+    function randomHole() {
+        const idx = Math.floor(Math.random() * moles.length);
+        if (idx === lastHole) return randomHole();
+        lastHole = idx;
+        return moles[idx];
+    }
+
+    function peep() {
+        const time = Math.random() * (1000 - 500) + 500;
+        const mole = randomHole();
+        mole.classList.add('up');
+        setTimeout(() => {
+            mole.classList.remove('up');
+            if (!timeUp) peep();
+        }, time);
+    }
+
+    function startMoles() {
+        moleScore = 0;
+        document.getElementById("mole-score").innerText = 0;
+        timeUp = false;
+        peep();
+        setTimeout(() => {
+            timeUp = true;
+            alert("Time's up! Final Score: " + moleScore);
+        }, 15000);
+    }
+
+    moles.forEach(mole => mole.addEventListener('click', function() {
+        if(this.classList.contains('up')) {
+            moleScore++;
+            this.classList.remove('up');
+            document.getElementById("mole-score").innerText = moleScore;
+        }
+    }));
+</script>
+
+</body>
+</html>
